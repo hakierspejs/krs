@@ -7,7 +7,7 @@ import sys
 import lxml.html
 import requests
 
-from flask import Flask, redirect
+from flask import Flask, redirect, send_from_directory
 app = Flask(__name__)
 
 KRS_URL = 'https://krs-pobierz.pl/stowarzyszenie-hakierspejs-lodz-i7113260'
@@ -29,12 +29,15 @@ def get_krs_last_updated():
     if cache_file.exists() and elapsed.seconds < 3600:
         sys.stderr.write(f'{elapsed=}, reusing cache\n')
         with cache_file.open() as f:
-            return f.read()
+            ret = f.read().strip()
+            sys.stderr.write(f'{ret=}\n')
+            return ret
 
     # otherwise, fetch the KRS website and cache the information
     r = requests.get(KRS_URL)
     h = lxml.html.fromstring(r.text)
     last_updated = h.xpath('//div [@class="lastDownloaded"]/p[2]/text()')[0]
+    sys.stderr.write(f'{last_updated=}\n')
 
     # store the last_updated information in a cache file
     with cache_file.open('w') as f:
@@ -54,6 +57,15 @@ def serve_krs():
         krs_cached = f.read()
 
     return krs_cached
+
+# serve *.pdf files directly
+@app.route('/<path:filename>')
+def serve_pdf(filename):
+    sys.stderr.write(f'{filename=}\n')
+    # is it a pdf file?
+    if not filename.endswith('.pdf'):
+        return '404'
+    return send_from_directory('.', filename)
 
 
 

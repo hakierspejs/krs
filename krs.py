@@ -3,6 +3,7 @@
 import pathlib
 import datetime
 import sys
+import logging
 
 import lxml.html
 import requests
@@ -26,18 +27,25 @@ def get_krs_last_updated():
     # about when the KRS was last updated, so that we don't have stress
     # the KRS website too much
     cache_file, elapsed = get_time_since_caching()
-    if cache_file.exists() and elapsed.seconds < 3600:
-        sys.stderr.write(f'{elapsed=}, reusing cache\n')
-        with cache_file.open() as f:
-            ret = f.read().strip()
-            sys.stderr.write(f'{ret=}\n')
-            return ret
 
-    # otherwise, fetch the KRS website and cache the information
-    r = requests.get(KRS_URL)
-    h = lxml.html.fromstring(r.text)
-    last_updated = h.xpath('//div [@class="lastDownloaded"]/p[2]/text()')[0]
-    sys.stderr.write(f'{last_updated=}\n')
+    with cache_file.open() as f:
+        cached = f.read().strip()
+
+    if cache_file.exists() and elapsed.seconds < 3600:
+        sys.stderr.write(f"{elapsed=}, reusing cache\n")
+        sys.stderr.write(f"{cached=}\n")
+        return cached
+
+    try:
+        # otherwise, fetch the KRS website and cache the information
+        r = requests.get(KRS_URL)
+        h = lxml.html.fromstring(r.text)
+        xpath = '//div [@class="lastDownloaded"]/p[2]/text()'
+        last_updated = h.xpath(xpath)[0]
+        sys.stderr.write(f'{last_updated=}\n')
+    except Exception:
+        last_updated = cached
+        logging.exception('Error parsing krs-pobierz.pl')
 
     # store the last_updated information in a cache file
     with cache_file.open('w') as f:

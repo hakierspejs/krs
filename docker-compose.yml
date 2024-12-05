@@ -1,0 +1,16 @@
+networks:
+  traefik:
+    external: true
+
+services:
+  krs:
+    networks:
+      - traefik
+    labels:
+        traefik.http.routers.krs.rule: "Host(`krs.hs-ldz.pl`)"
+        traefik.http.routers.krs.entrypoints: "websecure"
+        traefik.http.routers.krs.tls.certresolver: "myresolver"
+    expose:
+      - "5000"
+    restart: unless-stopped
+    build: .
